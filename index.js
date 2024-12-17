@@ -2,14 +2,21 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 require('dotenv').config()
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
-app.use(cors());
+app.use(cors({
+    origin:["http://localhost:5173"],
+    credentials:true
+}));
 app.use(express.json());
+app.use(cookieParser())
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.swu9d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.swu9d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = `mongodb+srv://${process.env.DB_User}:${process.env.DB_pass}@cluster0.ot76b.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -29,8 +36,8 @@ async function run() {
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
         // jobs related apis
-        const jobsCollection = client.db('jobPortal').collection('jobs');
-        const jobApplicationCollection = client.db('jobPortal').collection('job_applications');
+        const jobsCollection = client.db('jobsCollection').collection('jobs');
+        const jobApplicationCollection = client.db('jobsCollection').collection('job_applications');
 
         // jobs related APIs
         app.get('/jobs', async (req, res) => {
@@ -57,7 +64,19 @@ async function run() {
             res.send(result);
         })
 
+        /* -------------------------------- jwt token ------------------------------- */
+        app.post('/jwt',(req,res)=>{
+            const user = req.body
+            const token = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET,{expiresIn:'8h'})
+            // console.log(token)
+            res.cookie("token",token,{httpOnly: true, secure: false }).send({success:true})
+        })
 
+        /* ----------------------------- clear jwt token ---------------------------- */
+        app.post('/logOut',(req,res)=>{
+            
+            res.clearCookie("token",{httpOnly: true, secure: false }).send({success:true})
+        })
         // job application apis
         // get all data, get one data, get some data [o, 1, many]
         app.get('/job-application', async (req, res) => {
