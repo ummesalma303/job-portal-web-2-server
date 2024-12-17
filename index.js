@@ -15,6 +15,24 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser())
 
+/* ---------------------------- custom middleware --------------------------- */
+const verify = (req,res,next)=>{
+    const token =req?.cookies?.token
+    if (!token) {
+       return res.status(401).send({message: "unAuthorized access"})
+    }
+    jwt.verify(token,process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
+        if (err) {
+          return res.status(401).send({message: "unAuthorized access"})
+        }
+        req.user = decoded
+        next()
+    })
+    
+    // console.log('line no: 20',req?.cookies?.token)
+
+}
+
 // const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.swu9d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 const uri = `mongodb+srv://${process.env.DB_User}:${process.env.DB_pass}@cluster0.ot76b.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -67,7 +85,7 @@ async function run() {
         /* -------------------------------- jwt token ------------------------------- */
         app.post('/jwt',(req,res)=>{
             const user = req.body
-            const token = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET,{expiresIn:'8h'})
+            const token = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET,{expiresIn:'11h'})
             // console.log(token)
             res.cookie("token",token,{httpOnly: true, secure: false }).send({success:true})
         })
@@ -79,10 +97,15 @@ async function run() {
         })
         // job application apis
         // get all data, get one data, get some data [o, 1, many]
-        app.get('/job-application', async (req, res) => {
+        app.get('/job-application',verify, async (req, res) => {
             const email = req.query.email;
             const query = { applicant_email: email }
             const result = await jobApplicationCollection.find(query).toArray();
+
+            // jwt verify code
+           if (req.user.email !== email) {
+            return res.status(403).send({message: "forbidden access"})
+           }
 
             // fokira way to aggregate data
             for (const application of result) {
@@ -96,7 +119,7 @@ async function run() {
                     application.company_logo = job.company_logo;
                 }
             }
-
+            
             res.send(result);
         })
 
